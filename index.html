@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рецепти</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            font-size: 20px;
+            padding: 12px 20px;
+            margin-top: 15px;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn-delete {
+            font-size: 20px;
+            color: red;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        .btn-delete:hover {
+            color: darkred;
+        }
+        .category, .recipe-detail {
+            margin-top: 30px;
+            padding: 20px;
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            position: relative;
+            text-align: center;
+        }
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .recipe {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+        }
+        .recipe:last-child {
+            border-bottom: none;
+        }
+        .recipe-detail {
+            display: none;
+        }
+        .center-title {
+            font-size: 26px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .btn-small {
+            color: #333;
+            background-color: #ddd;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            font-size: 24px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        #registration input {
+            padding: 12px;
+            font-size: 18px;
+            width: 80%;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+        /* Центрирование рецептов и кнопки */
+        #categories, #main-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 500px;
+        }
+        .add-recipe-btn {
+            font-size: 20px;
+            background-color: #ddd;
+            color: #333;
+            border: none;
+            border-radius: 50%;
+            padding: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="registration" style="display: none;">
+        <h1>Реєстрація</h1>
+        <input type="text" id="username" placeholder="Введіть ім'я" />
+        <input type="password" id="password" placeholder="Введіть пароль" />
+        <button class="btn" onclick="registerUser()">Зареєструватися</button>
+    </div>
+
+    <div id="app-content" style="display: none;">
+        <h1>Рецепти</h1>
+        <button id="main-button" class="btn" onclick="mainButtonAction()">Додати</button>
+
+        <div id="categories"></div>
+
+        <!-- Детальный просмотр рецепта -->
+        <div class="recipe-detail" id="recipe-detail">
+            <div class="center-title" id="recipe-title">Назва рецепта</div>
+            <button class="btn-small" style="position: absolute; top: 20px; right: 20px;" onclick="addDescription()">+</button>
+            <span class="btn-delete" style="position: absolute; top: 20px; left: 20px;" onclick="deleteCurrentRecipe()">×</span>
+            <div id="recipe-description"></div>
+        </div>
+    </div>
+
+    <script>
+        let categories = JSON.parse(localStorage.getItem('categories')) || [];
+        let currentRecipe = null;
+        let inRecipeView = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('username')) {
+                document.getElementById('registration').style.display = 'none';
+                document.getElementById('app-content').style.display = 'block';
+                renderCategories();
+            } else {
+                document.getElementById('registration').style.display = 'block';
+            }
+        });
+
+        function registerUser() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            if (username && password) {
+                localStorage.setItem('username', username);
+                localStorage.setItem('password', password); // Сохраняем пароль
+                document.getElementById('registration').style.display = 'none';
+                document.getElementById('app-content').style.display = 'block';
+                renderCategories();
+            }
+        }
+
+        function mainButtonAction() {
+            if (inRecipeView) {
+                goBack();
+            } else {
+                addCategory();
+            }
+        }
+
+        function addCategory() {
+            const name = prompt("Введіть назву параграфа:");
+            if (name) {
+                const category = { name, recipes: [] };
+                categories.push(category);
+                saveAndRender();
+            }
+        }
+
+        function addRecipe(categoryIndex) {
+            const name = prompt("Введіть назву блюда:");
+            if (name) {
+                categories[categoryIndex].recipes.push({ name, description: [] });
+                saveAndRender();
+            }
+        }
+
+        function showRecipe(categoryIndex, recipeIndex) {
+            currentRecipe = { categoryIndex, recipeIndex };
+            inRecipeView = true;
+            updateMainButton();
+            const recipe = categories[categoryIndex].recipes[recipeIndex];
+            document.getElementById('recipe-title').innerText = recipe.name;
+            document.getElementById('recipe-description').innerHTML = recipe.description.map((desc, i) => 
+                `<p>${desc} <span class="btn-delete" onclick="deleteDescription(${i})">×</span></p>`
+            ).join('');
+            document.getElementById('categories').style.display = 'none';
+            document.getElementById('recipe-detail').style.display = 'block';
+        }
+
+        function goBack() {
+            inRecipeView = false;
+            updateMainButton();
+            document.getElementById('categories').style.display = 'block';
+            document.getElementById('recipe-detail').style.display = 'none';
+            currentRecipe = null;
+        }
+
+        function updateMainButton() {
+            document.getElementById('main-button').innerText = inRecipeView ? 'Назад' : 'Додати';
+        }
+
+        function addDescription() {
+            if (currentRecipe) {
+                const description = prompt("Введіть опис рецепта:");
+                if (description) {
+                    categories[currentRecipe.categoryIndex].recipes[currentRecipe.recipeIndex].description.push(description);
+                    saveAndRender();
+                    showRecipe(currentRecipe.categoryIndex, currentRecipe.recipeIndex);
+                }
+            }
+        }
+
+        function deleteCategory(index) {
+            if (confirm("Ви впевнені, що хочете видалити параграф?")) {
+                categories.splice(index, 1);
+                saveAndRender();
+            }
+        }
+
+        function deleteRecipe(categoryIndex, recipeIndex) {
+            if (confirm("Ви впевнені, що хочете видалити цей рецепт?")) {
+                categories[categoryIndex].recipes.splice(recipeIndex, 1);
+                saveAndRender();
+            }
+        }
+
+        function deleteDescription(descriptionIndex) {
+            if (confirm("Ви впевнені, що хочете видалити це опис?")) {
+                categories[currentRecipe.categoryIndex].recipes[currentRecipe.recipeIndex].description.splice(descriptionIndex, 1);
+                saveAndRender();
+                showRecipe(currentRecipe.categoryIndex, currentRecipe.recipeIndex);
+            }
+        }
+
+        function deleteCurrentRecipe() {
+            if (currentRecipe) {
+                const { categoryIndex, recipeIndex } = currentRecipe;
+                if (confirm("Ви впевнені, що хочете видалити цей рецепт?")) {
+                    categories[categoryIndex].recipes.splice(recipeIndex, 1);
+                    saveAndRender();
+                    goBack();
+                }
+            }
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('categories', JSON.stringify(categories));
+            renderCategories();
+        }
+
+        function renderCategories() {
+            const categoriesDiv = document.getElementById('categories');
+            categoriesDiv.innerHTML = '';
+            categories.forEach((category, categoryIndex) => {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.classList.add('category');
+                const categoryHeader = document.createElement('div');
+                categoryHeader.classList.add('category-header');
+                categoryHeader.innerHTML = `${category.name} <span class="btn-delete" onclick="deleteCategory(${categoryIndex})">×</span>`;
+                const recipesDiv = document.createElement('div');
+                category.recipes.forEach((recipe, recipeIndex) => {
+                    const recipeDiv = document.createElement('div');
+                    recipeDiv.classList.add('recipe');
+                    recipeDiv.innerHTML = `${recipe.name}<span class="btn-delete" onclick="deleteRecipe(${categoryIndex}, ${recipeIndex})">×</span>`;
+                    recipeDiv.onclick = () => showRecipe(categoryIndex, recipeIndex);
+                    recipesDiv.appendChild(recipeDiv);
+                });
+                const addRecipeBtn = document.createElement('button');
+                addRecipeBtn.classList.add('add-recipe-btn');
+                addRecipeBtn.innerText = '+';
+                addRecipeBtn.onclick = () => addRecipe(categoryIndex);
+                categoryDiv.appendChild(categoryHeader);
+                categoryDiv.appendChild(recipesDiv);
+                categoryDiv.appendChild(addRecipeBtn);
+                categoriesDiv.appendChild(categoryDiv);
+            });
+        }
+    </script>
+</body>
+</html>
